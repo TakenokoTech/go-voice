@@ -1,0 +1,9 @@
+{
+    "go.autocompleteUnimportedPackages": true,
+    "go.coverOnSave": true,
+    "go.coverOnSingleTest": true,
+    "go.gocodeAutoBuild": true,
+    "go.testOnSave": true,
+    "editor.formatOnSave": true,
+    "go.inferGopath": false
+}
