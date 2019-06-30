@@ -22,7 +22,7 @@ async function startRec() {
     // ELEMENT
     context = new AudioContext();
 
-    const stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true })
+    const stream = await navigator.mediaDevices.getUserMedia({ video: false, audio: true })
     video.srcObject = stream
     video.volume = 0
 
@@ -41,7 +41,7 @@ async function startRec() {
             float32Array = e.inputBuffer.getChannelData(i);
             Array.prototype.push.apply(floatData[i], float32Array);
         }
-        recTime.innerHTML = Math.round(duration * 1000) / 1000;
+        recTime.innerHTML = Math.round(duration * 100) / 100;
     };
     processor.connect(context.destination);
 }
@@ -85,6 +85,17 @@ function stopRec() {
             console.log("audio stopped.");
             $("#recBtn").prop("disabled", false);
         };
+
+        // 
+        let playtime = 0.0;
+        playTime.innerHTML = "Ready...";
+        const id = setInterval(() => {
+            if (!floatData) clearInterval(id);
+            playtime += 0.01;
+            const realtime = Math.round(playtime * 100) / 100;
+            const maxtime = Math.round(source.buffer.duration * 100) / 100;
+            playTime.innerHTML = Math.min(realtime, maxtime) + " / " +  maxtime;
+        }, 10);
     }
 }
 
@@ -94,7 +105,7 @@ function graph(inputdata) {
     new Chart(soundChart, {
         type: "line", data: {
             labels: inputdata.map(v => 0), datasets: [{
-                label: "aaa",
+                label: "voice",
                 data: inputdata.map(v => v * 100),
                 borderColor: "rgba(242,105,57,1)",
                 backgroundColor: "rgba(0,0,0,0)",
