@@ -135,6 +135,23 @@ class Graph {
             if (i === 0) context.moveTo(x, y); else context.lineTo(x, y)
         }
         context.stroke()
+        // context.beginPath()
+        // const dft = utils.dft(data)
+        // for (const i in dft.Re) {
+        //     for (const j in dft.Re) {
+        //         if (dft.Re[i] < dft.Re[j]) {
+        //             const temp1 = dft.Re[i]; dft.Re[i] = dft.Re[j]; dft.Re[j] = temp1;
+        //             const temp2 = dft.Im[i]; dft.Im[i] = dft.Im[j]; dft.Im[j] = temp2;
+        //         }
+        //     }
+        // }
+        // for (const i in dft.Re) {
+        //     var x = dft.Re[+i] * width
+        //     var y = (1 - dft.Im[+i]) * height
+        //     context.strokeStyle = 'rgba(0, 255, 255, 0.5)';
+        //     if (i === 0) context.moveTo(x, y); else context.lineTo(x, y)
+        // }
+        // context.stroke()
     }
 }
 
@@ -154,6 +171,22 @@ class Utils {
         }
         console.log(`${p}, pitch = ${pitch}`)
         return newData
+    }
+
+    // フーリエ変換できてない
+    dft(a) {
+        const Re = [], Im = []
+        for (let j = 0, N = a.length; j < N; ++j) {
+            let Re_sum = 0.0, Im_sum = 0.0;
+            for (let i = 0; i < N; ++i) {
+                var tht = 2 * Math.PI / N * j * i;
+                Re_sum += a[i] * Math.cos(tht);
+                Im_sum += a[i] * Math.sin(tht);
+            }
+            Re.push(Re_sum);
+            Im.push(Im_sum);
+        }
+        return { Re: Re, Im: Im };
     }
 }
 
