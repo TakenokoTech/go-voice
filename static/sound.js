@@ -2,6 +2,7 @@ class Sound {
     constructor() {
         this.didmount = this.didmount.bind(this)
         this.initialize = this.initialize.bind(this)
+        this.analyser = this.analyser.bind(this)
         this.onAudioProcess = this.onAudioProcess.bind(this)
         this.initialize()
         this.didmount()
@@ -14,12 +15,14 @@ class Sound {
         this.length = 0
         this.scriptProcessorNode = null
         this.audioBufferSourceNode = null
+        this.e = null
     }
 
     didmount() {
         this.video = document.getElementById("myVideo")
         this.debugText = document.getElementById("debugText")
         this.recTime = document.getElementById("recTime")
+        this.analyser()
     }
 
     async start() {
@@ -70,6 +73,17 @@ class Sound {
         })
     }
 
+    analyser() {
+        const id = setInterval(() => {
+            if (!this.e) return
+            const frequencyData = new Uint8Array(this.analyserNode.frequencyBinCount);
+            this.analyserNode.getByteFrequencyData(frequencyData);
+            const timeDomainData = new Uint8Array(this.analyserNode.frequencyBinCount);
+            this.analyserNode.getByteTimeDomainData(timeDomainData)
+            this.graph.update(this.e.inputBuffer.getChannelData(0), frequencyData, timeDomainData)
+        }, 30);
+    }
+
     onAudioProcess(e) {
         // console.log("onaudioprocess", this.sampleRate, this.duration, this.length)
         // debugText.innerHTML = "<div>" + e.inputBuffer.getChannelData(0).map(v => v * 10).join("</div><div>") + "</div>"
@@ -77,14 +91,14 @@ class Sound {
         this.duration += e.inputBuffer.duration
         this.length += e.inputBuffer.length
         this.data = !this.data ? new Array(e.inputBuffer.numberOfChannels).fill([]) : this.data
-        for (const i of Array(this.data.length).keys()) Array.prototype.push.apply(this.data[i], e.inputBuffer.getChannelData(i))
+        for (const i of Array(this.data.length).keys()) {
+            const dft = utils.dft(e.inputBuffer.getChannelData(i))
+            // const idft = utils.idft(dft.Re, dft.Im)
+            // Array.prototype.push.apply(this.data[i], idft.Re)
+            Array.prototype.push.apply(this.data[i], e.inputBuffer.getChannelData(i))
+        }
         recTime.innerHTML = this.duration.toFixed(2)
-        // Analyser
-        const frequencyData = new Uint8Array(this.analyserNode.frequencyBinCount);
-        this.analyserNode.getByteFrequencyData(frequencyData);
-        const timeDomainData = new Uint8Array(this.analyserNode.frequencyBinCount);
-        this.analyserNode.getByteTimeDomainData(timeDomainData)
-        this.graph.update(e.inputBuffer.getChannelData(0), frequencyData, timeDomainData)
+        this.e = e
     }
 
     onPlaying(playtime = 0.0) {
@@ -107,6 +121,7 @@ class Graph {
     }
 
     update(data, frequencyData, timeDomainData) {
+        return
         const context = this.canvasContext
         const width = this.canvas.width
         const height = this.canvas.height
@@ -143,7 +158,7 @@ class Graph {
         }
         context.stroke()
 
-        const dft = utils.dft(data)
+        let dft = utils.dft(data)
         context.beginPath()
         for (const x in dft.Re) {
             var y = (1 - dft.Re[+x]) * height
@@ -162,6 +177,30 @@ class Graph {
         for (const x in dft.Re) {
             const d = Math.sqrt(Math.pow(dft.Re[+x], 2) - Math.pow(dft.Im[+x], 2)) || 0
             var y = (1 - d) * height
+            context.strokeStyle = 'rgba(255, 0, 0, 0.5)';
+            if (x === 0) context.moveTo(x, y); else context.lineTo(x, y)
+        }
+        context.stroke()
+
+        dft = utils.idft(dft.Re, dft.Im)
+        context.beginPath()
+        for (const x in dft.Re) {
+            var y = height * dft.Re[+x] + (height / 2)
+            context.strokeStyle = 'rgba(0, 255, 255, 0.5)';
+            if (x === 0) context.moveTo(x, y); else context.lineTo(x, y)
+        }
+        context.stroke()
+        context.beginPath()
+        for (const x in dft.Re) {
+            var y = height * dft.Im[+x] + (height / 2)
+            context.strokeStyle = 'rgba(255, 0, 255, 0.5)';
+            if (x === 0) context.moveTo(x, y); else context.lineTo(x, y)
+        }
+        context.stroke()
+        context.beginPath()
+        for (const x in dft.Re) {
+            const d = Math.sqrt(Math.pow(dft.Re[+x], 2) - Math.pow(dft.Im[+x], 2)) || 0
+            var y = d * height + (height / 2)
             context.strokeStyle = 'rgba(255, 0, 0, 0.5)';
             if (x === 0) context.moveTo(x, y); else context.lineTo(x, y)
         }
@@ -187,32 +226,34 @@ class Utils {
         return newData
     }
 
-    // フーリエ変換できてない
-    dft(a) {
+    dft(data) {
+        console.log(data)
         const Re = [], Im = []
-        for (let j = 0, N = a.length; j < N; ++j) {
+        for (let j = 0, N = data.length; j < N; ++j) {
             let Re_sum = 0.0, Im_sum = 0.0;
             for (let i = 0; i < N; ++i) {
-                var tht = 2 * Math.PI / N * j * i;
-                Re_sum += a[i] * Math.cos(tht);
-                Im_sum += a[i] * Math.sin(tht);
+                var tht = 2.0 * Math.PI * i * j / N;
+                // Re_sum += data[i] * Math.cos(tht);
+                // Im_sum += data[i] * Math.sin(tht);
             }
-            Re.push(Re_sum);
-            Im.push(Im_sum);
+            Re.push(Re_sum/* / N*/);
+            Im.push(Im_sum/* / N*/);
         }
+        console.log(data)
         return { Re: Re, Im: Im };
     }
 
-    dft(a) {
+    idft(re, im) {
         const Re = [], Im = []
-        for (let j = 0, N = a.length; j < N; ++j) {
+        for (let j = 0, N = re.length; j < N; ++j) {
             let Re_sum = 0.0, Im_sum = 0.0;
             for (let i = 0; i < N; ++i) {
-                Re_sum += a[i] * Math.cos(2 * Math.PI / N * j * i);
-                Im_sum += a[i] * Math.sin(2 * Math.PI / N * j * i);
+                const tht = 2.0 * Math.PI * i * j / N
+                Re_sum += re[i] * Math.cos(tht) - im[i] * Math.sin(tht)
+                Im_sum += re[i] * Math.sin(tht) + im[i] * Math.cos(tht)
             }
-            Re.push(Re_sum);
-            Im.push(Im_sum);
+            Re.push(Re_sum / N);
+            Im.push(Im_sum / N);
         }
         return { Re: Re, Im: Im };
     }
