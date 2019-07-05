@@ -57,7 +57,19 @@ class Sound {
             const audioBuffer = this.context.createBuffer(this.data.length, this.length, this.sampleRate);
             for (const i of Array(this.data.length).keys()) {
                 // this.data[i] = utils.pitchShift(this.data[i])
-                audioBuffer.getChannelData(i).set(this.data[i]);
+                const data = this.data[i]
+                const chunk = 1024
+                let buffer = []
+                for (let i = 0, len = data.length; i < len; i += chunk) {
+                    const startTime = performance.now();
+                    const arr = data.slice(i, i + chunk)
+                    const dft = utils.dft(arr)
+                    const idft = utils.idft(dft.Re, dft.Im).Re
+                    for (const n of idft) buffer.push(n)
+                    const endTime = performance.now();
+                    console.log(`${i} / ${len} dft: ${endTime - startTime}`);
+                }
+                audioBuffer.getChannelData(i).set(buffer)
             }
             this.audioBufferSourceNode.buffer = audioBuffer
             this.audioBufferSourceNode.loopEnd = audioBuffer.duration
@@ -85,16 +97,13 @@ class Sound {
     }
 
     onAudioProcess(e) {
-        // console.log("onaudioprocess", this.sampleRate, this.duration, this.length)
+        console.log("onaudioprocess", this.sampleRate, this.duration, this.length)
         // debugText.innerHTML = "<div>" + e.inputBuffer.getChannelData(0).map(v => v * 10).join("</div><div>") + "</div>"
         this.sampleRate = e.inputBuffer.sampleRate
         this.duration += e.inputBuffer.duration
         this.length += e.inputBuffer.length
         this.data = !this.data ? new Array(e.inputBuffer.numberOfChannels).fill([]) : this.data
         for (const i of Array(this.data.length).keys()) {
-            const dft = utils.dft(e.inputBuffer.getChannelData(i))
-            // const idft = utils.idft(dft.Re, dft.Im)
-            // Array.prototype.push.apply(this.data[i], idft.Re)
             Array.prototype.push.apply(this.data[i], e.inputBuffer.getChannelData(i))
         }
         recTime.innerHTML = this.duration.toFixed(2)
@@ -121,7 +130,6 @@ class Graph {
     }
 
     update(data, frequencyData, timeDomainData) {
-        return
         const context = this.canvasContext
         const width = this.canvas.width
         const height = this.canvas.height
@@ -227,24 +235,25 @@ class Utils {
     }
 
     dft(data) {
-        console.log(data)
-        const Re = [], Im = []
+        // const startTime = performance.now();
+        const Re = new Float32Array(data.length)
+        const Im = new Float32Array(data.length)
         for (let j = 0, N = data.length; j < N; ++j) {
-            let Re_sum = 0.0, Im_sum = 0.0;
             for (let i = 0; i < N; ++i) {
-                var tht = 2.0 * Math.PI * i * j / N;
-                // Re_sum += data[i] * Math.cos(tht);
-                // Im_sum += data[i] * Math.sin(tht);
+                const tht = 2.0 * Math.PI * i * j / N;
+                Re[j] += Math.cos(tht) * data[i]
+                Im[j] += Math.sin(tht) * data[i]
             }
-            Re.push(Re_sum/* / N*/);
-            Im.push(Im_sum/* / N*/);
         }
-        console.log(data)
+        // const endTime = performance.now();
+        // console.log(`dft: ${endTime - startTime} ${data.length}`);
         return { Re: Re, Im: Im };
     }
 
     idft(re, im) {
-        const Re = [], Im = []
+        // const startTime = performance.now();
+        const Re = new Float32Array(re.length)
+        const Im = new Float32Array(re.length)
         for (let j = 0, N = re.length; j < N; ++j) {
             let Re_sum = 0.0, Im_sum = 0.0;
             for (let i = 0; i < N; ++i) {
@@ -252,9 +261,11 @@ class Utils {
                 Re_sum += re[i] * Math.cos(tht) - im[i] * Math.sin(tht)
                 Im_sum += re[i] * Math.sin(tht) + im[i] * Math.cos(tht)
             }
-            Re.push(Re_sum / N);
-            Im.push(Im_sum / N);
+            Re[j] = Re_sum / N;
+            Im[j] = Im_sum / N;
         }
+        // const endTime = performance.now();
+        // console.log(`idft: ${endTime - startTime}`);
         return { Re: Re, Im: Im };
     }
 }
