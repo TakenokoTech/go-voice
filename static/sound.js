@@ -2,6 +2,7 @@ class Sound {
     constructor() {
         this.didmount = this.didmount.bind(this)
         this.initialize = this.initialize.bind(this)
+		this.callapi = this.callapi.bind(this)
         this.analyser = this.analyser.bind(this)
         this.onAudioProcess = this.onAudioProcess.bind(this)
         this.initialize()
@@ -24,6 +25,15 @@ class Sound {
         this.recTime = document.getElementById("recTime")
         this.analyser()
     }
+	
+	async callapi(sound = "---") {
+		const res = await fetch("http://127.0.0.1:8080/link", {
+			method: 'POST',
+			body: JSON.stringify({"sound": sound})
+		})
+		const json = await res.json()
+		console.log(json)
+	}
 
     async start() {
         this.data = null
@@ -98,6 +108,7 @@ class Sound {
 
     onAudioProcess(e) {
         console.log("onaudioprocess", this.sampleRate, this.duration, this.length)
+		this.callapi(e.inputBuffer.getChannelData(0))
         // debugText.innerHTML = "<div>" + e.inputBuffer.getChannelData(0).map(v => v * 10).join("</div><div>") + "</div>"
         this.sampleRate = e.inputBuffer.sampleRate
         this.duration += e.inputBuffer.duration

@@ -1,27 +1,40 @@
 package main
 
 import (
-	_ "fmt"
-	"log"
-	_ "math"
-	"os"
+	"encoding/json"
+	"fmt"
+	"net/http"
 
 	"github.com/TakenokoTech/go-voice/utils"
-	"github.com/mjibson/go-dsp/wav"
 )
 
+type Request struct {
+	Sound string `json:"sound"`
+}
+
+type Responce struct {
+	Status string `json:"status"`
+	Result string `json:"result"`
+}
+
+func handler(w http.ResponseWriter, r *http.Request) {
+	println(r.Body, r.Header.Get("Origin"))
+	// Request
+	request := Request{""}
+	err := utils.JSONParse(w, r, &request)
+	fmt.Printf("%v\n", err)
+	fmt.Printf("%v\n", request)
+
+	// Response
+	res, _ := json.Marshal(Responce{"ok", ""})
+	w.Header().Set("Content-Type", "application/json")
+	w.Write(res)
+	w.WriteHeader(http.StatusOK)
+}
+
 func main() {
-	// ファイルのオープン
-	file, err := os.Open("./data/sample.wav")
-	if err != nil {
-		log.Fatal(err)
-	}
-
-	// Wavファイルの読み込み
-	_, werr := wav.New(file)
-	if werr != nil {
-		log.Fatal(werr)
-	}
-
-	log.Printf("%v", utils.Sound())
+	println("main")
+	http.HandleFunc("/link", handler)
+	http.Handle("/", http.FileServer(http.Dir("static")))
+	http.ListenAndServe(":8080", nil)
 }
