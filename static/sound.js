@@ -24,15 +24,22 @@ class Sound {
         this.debugText = document.getElementById("debugText")
         this.recTime = document.getElementById("recTime")
         this.analyser()
-    }
+	}
 	
-	async callapi(sound = "---") {
-		const res = await fetch("http://127.0.0.1:8080/link", {
-			method: 'POST',
-			body: JSON.stringify({"sound": sound})
-		})
-		const json = await res.json()
-		console.log(json)
+	async callapi(sound = []) {
+		try {
+			console.log(sound.length)
+			const res = await fetch("http://127.0.0.1:8080/link", {
+				method: 'POST',
+				body: JSON.stringify({"sound": sound})
+			})
+			const json = await res.json()
+			console.log(json)
+			return json.result
+		} catch(e) {
+			console.error(e)
+			return ""
+		}
 	}
 
     async start() {
@@ -66,20 +73,22 @@ class Sound {
             this.scriptProcessorNode.disconnect();
             const audioBuffer = this.context.createBuffer(this.data.length, this.length, this.sampleRate);
             for (const i of Array(this.data.length).keys()) {
-                // this.data[i] = utils.pitchShift(this.data[i])
-                const data = this.data[i]
-                const chunk = 1024
-                let buffer = []
-                for (let i = 0, len = data.length; i < len; i += chunk) {
-                    const startTime = performance.now();
-                    const arr = data.slice(i, i + chunk)
-                    const dft = utils.dft(arr)
-                    const idft = utils.idft(dft.Re, dft.Im).Re
-                    for (const n of idft) buffer.push(n)
-                    const endTime = performance.now();
-                    console.log(`${i} / ${len} dft: ${endTime - startTime}`);
-                }
-                audioBuffer.getChannelData(i).set(buffer)
+				// this.data[i] = utils.pitchShift(this.data[i])
+				let data = this.data[i]
+				data = await this.callapi(data)
+                // const chunk = 1024
+                // let buffer = []
+                // for (let i = 0, len = data.length; i < len; i += chunk) {
+                //     const startTime = performance.now();
+                //     const arr = data.slice(i, i + chunk)
+                //     const dft = utils.dft(arr)
+                //     const idft = utils.idft(dft.Re, dft.Im).Re
+                //     for (const n of idft) buffer.push(n)
+                //     const endTime = performance.now();
+                //     console.log(`${i} / ${len} dft: ${endTime - startTime}`);
+                // }
+				// audioBuffer.getChannelData(i).set(buffer)
+				audioBuffer.getChannelData(i).set(data)
             }
             this.audioBufferSourceNode.buffer = audioBuffer
             this.audioBufferSourceNode.loopEnd = audioBuffer.duration
@@ -107,8 +116,7 @@ class Sound {
     }
 
     onAudioProcess(e) {
-        console.log("onaudioprocess", this.sampleRate, this.duration, this.length)
-		this.callapi(e.inputBuffer.getChannelData(0))
+		console.log("onaudioprocess", this.sampleRate, this.duration, this.length)
         // debugText.innerHTML = "<div>" + e.inputBuffer.getChannelData(0).map(v => v * 10).join("</div><div>") + "</div>"
         this.sampleRate = e.inputBuffer.sampleRate
         this.duration += e.inputBuffer.duration
@@ -177,6 +185,7 @@ class Graph {
         }
         context.stroke()
 
+		/*
         let dft = utils.dft(data)
         context.beginPath()
         for (const x in dft.Re) {
@@ -223,7 +232,8 @@ class Graph {
             context.strokeStyle = 'rgba(255, 0, 0, 0.5)';
             if (x === 0) context.moveTo(x, y); else context.lineTo(x, y)
         }
-        context.stroke()
+		context.stroke()
+		*/
     }
 }
 

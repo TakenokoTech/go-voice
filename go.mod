@@ -7,6 +7,8 @@ require (
 	github.com/gorilla/websocket v1.4.0
 	github.com/mewkiz/flac v1.0.5 // indirect
 	github.com/mjibson/go-dsp v0.0.0-20180508042940-11479a337f12
+	github.com/motemen/go-loghttp v0.0.0-20170804080138-974ac5ceac27
+	github.com/motemen/go-nuts v0.0.0-20180315145558-42c35bdb11c2 // indirect
 	github.com/shurcooL/go v0.0.0-20190704215121-7189cc372560 // indirect
 	github.com/shurcooL/go-goon v0.0.0-20170922171312-37c2f522c041 // indirect
 	github.com/shurcooL/goexec v0.0.0-20181215213458-76a6b9a99126 // indirect
