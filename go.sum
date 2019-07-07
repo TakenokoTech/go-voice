@@ -1,5 +1,9 @@
 azul3d.org/engine v0.0.0-20180624221640-25c8eab2d474 h1:me8O1iaAaGR8saXy9tt6QjyXM2DL3IaBM1a3SzWBDFI=
 azul3d.org/engine v0.0.0-20180624221640-25c8eab2d474/go.mod h1:3y1cwzJTKvXXop+EAg+AUVfNm3bfHf3djeX+l1UBuUE=
+github.com/google/go-cmp v0.3.0 h1:crn/baboCvb5fXaQ0IJ1SGTsTVrWpDsCWC8EGETZijY=
+github.com/google/go-cmp v0.3.0/go.mod h1:8QqcDgzrUqlUb/G2PQTWiueGozuR1884gddMywk6iLU=
+github.com/gorilla/mux v1.7.3 h1:gnP5JzjVOuiZD07fKKToCAOjS0yOpj/qPETTXCCS6hw=
+github.com/gorilla/mux v1.7.3/go.mod h1:1lud6UwP+6orDFRuTfBEV8e9/aOM/c4fVVCaMa2zaAs=
 github.com/gorilla/websocket v1.4.0 h1:WDFjx/TMzVgy9VdMMQi2K2Emtwi2QcUQsztZ/zLaH/Q=
 github.com/gorilla/websocket v1.4.0/go.mod h1:E7qHFY5m1UJ88s3WnNqhKjPHQ0heANvMoAMk2YaljkQ=
 github.com/mewkiz/flac v1.0.5 h1:dHGW/2kf+/KZ2GGqSVayNEhL9pluKn/rr/h/QqD9Ogc=
@@ -10,6 +14,8 @@ github.com/motemen/go-loghttp v0.0.0-20170804080138-974ac5ceac27 h1:uAI3rnOT1OSS
 github.com/motemen/go-loghttp v0.0.0-20170804080138-974ac5ceac27/go.mod h1:6eu9CfGt5kfrMVgeu9MfB9PRUnpc47I+udLswiTszI8=
 github.com/motemen/go-nuts v0.0.0-20180315145558-42c35bdb11c2 h1:gfo7RLzXaBdNShd7F5N3K1oM779cD777np9ljUgvf9s=
 github.com/motemen/go-nuts v0.0.0-20180315145558-42c35bdb11c2/go.mod h1:vfh/NPxHgDwggXit20W1llPsXcz39xJ7I8vo7kVrOCk=
+github.com/pkg/errors v0.8.1 h1:iURUrRGxPUNPdy5/HRSm+Yj6okJ6UtLINN0Q9M4+h3I=
+github.com/pkg/errors v0.8.1/go.mod h1:bwawxfHBFNV+L2hUp1rHADufV3IMtnDRdf1r5NINEl0=
 github.com/shurcooL/go v0.0.0-20190704215121-7189cc372560 h1:SpaoQDTgpo2YZkvmr2mtgloFFfPTjtLMlZkQtNAPQik=
 github.com/shurcooL/go v0.0.0-20190704215121-7189cc372560/go.mod h1:TDJrrUr11Vxrven61rcy3hJMUqaf/CLWYhHNPmT14Lk=
 github.com/shurcooL/go-goon v0.0.0-20170922171312-37c2f522c041 h1:llrF3Fs4018ePo4+G/HV/uQUqEI1HMDjCeOf2V6puPc=
@@ -25,3 +31,5 @@ golang.org/x/sys v0.0.0-20190215142949-d0b11bdaac8a/go.mod h1:STP8DvDyc/dI5b8T5h
 golang.org/x/text v0.3.0/go.mod h1:NqM8EUOU14njkJ3fqMW+pc6Ldnwhi/IjpwHt7yyuwOQ=
 golang.org/x/tools v0.0.0-20190703212419-2214986f1668 h1:3LJOYcj2ObWSZJXX21oGIIPv5SaOoi5JkzQTWnCXRhg=
 golang.org/x/tools v0.0.0-20190703212419-2214986f1668/go.mod h1:jcCCGcm9btYwXyDqrUWc6MKQKKGJCWEQ3AfLSRIbEuI=
+gotest.tools v2.2.0+incompatible h1:VsBPFP1AI068pPrMxtb/S8Zkgf9xEmTLJjfM+P5UIEo=
+gotest.tools v2.2.0+incompatible/go.mod h1:DsYFclhRJ6vuDpmuTbkuFWG+y2sxOXAzmJt81HFBacw=

@@ -6,7 +6,6 @@ import (
 	"io/ioutil"
 	"log"
 	"net/http"
-	"strconv"
 )
 
 // ResponseSuccess :
@@ -25,31 +24,20 @@ func ResponseFailed(w http.ResponseWriter, res []byte) {
 
 // JSONParse :
 func JSONParse(w http.ResponseWriter, r *http.Request, o interface{}) error {
-	r.Body = http.MaxBytesReader(w, r.Body, 100000000000)
-
-	//To allocate slice for request body
-	length, err := strconv.Atoi(r.Header.Get("Content-Length"))
-	if err != nil {
-		return err
-	}
-
 	//Read body data to parse json
 	body, err := ioutil.ReadAll(r.Body)
 	if err != nil && err != io.EOF {
 		log.Printf(err.Error())
 		return err
 	}
-
 	if err != nil && err != io.EOF {
 		log.Printf(err.Error())
 		return err
 	}
-
 	//parse json
-	if err := json.Unmarshal(body[:length], &o); err != nil {
+	if err := json.Unmarshal(body, &o); err != nil {
 		log.Printf(err.Error())
 		return err
 	}
-
 	return nil
 }
