@@ -29,7 +29,7 @@ class Sound {
 	async callapi(sound = []) {
 		try {
 			console.log(sound.length)
-			const res = await fetch("http://127.0.0.1:8080/link", {
+			const res = await fetch("/link", {
 				method: 'POST',
 				body: JSON.stringify({"sound": sound})
 			})
