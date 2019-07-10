@@ -2,7 +2,7 @@ class Sound {
     constructor() {
         this.didmount = this.didmount.bind(this)
         this.initialize = this.initialize.bind(this)
-		this.callapi = this.callapi.bind(this)
+        this.callapi = this.callapi.bind(this)
         this.analyser = this.analyser.bind(this)
         this.onAudioProcess = this.onAudioProcess.bind(this)
         this.initialize()
@@ -15,8 +15,8 @@ class Sound {
         this.duration = 0
         this.length = 0
         this.scriptProcessorNode = null
-		this.audioBufferSourceNode = null
-		this.analyserNode = null
+        this.audioBufferSourceNode = null
+        this.analyserNode = null
     }
 
     didmount() {
@@ -24,30 +24,30 @@ class Sound {
         this.debugText = document.getElementById("debugText")
         this.recTime = document.getElementById("recTime")
         this.analyser()
-	}
-	
-	async callapi(sound = []) {
-		try {
-			console.log(sound.length)
-			const res = await fetch("/link", {
-				method: 'POST',
-				body: JSON.stringify({"sound": sound})
-			})
-			const json = await res.json()
-			console.log(json)
-			return json.result
-		} catch(e) {
-			console.error(e)
-			return ""
-		}
-	}
+    }
+
+    async callapi(sound = []) {
+        try {
+            console.log(sound.length)
+            const res = await fetch("/link", {
+                method: 'POST',
+                body: JSON.stringify({ "sound": sound })
+            })
+            const json = await res.json()
+            // console.log(json)
+            return json.result
+        } catch (e) {
+            console.error(e)
+            return ""
+        }
+    }
 
     async start() {
         return new Promise(async (resolve) => {
-			this.data = null
-			this.context = new AudioContext()
-			this.scriptProcessorNode = this.context.createScriptProcessor(1024, 1, 1)
-			this.analyserNode = this.context.createAnalyser()
+            this.data = null
+            this.context = new AudioContext()
+            this.scriptProcessorNode = this.context.createScriptProcessor(1024, 1, 1)
+            this.analyserNode = this.context.createAnalyser()
             this.video.srcObject = await navigator.mediaDevices.getUserMedia({ video: false, audio: true })
             this.video.volume = 0
             const scriptProcessorNode = this.scriptProcessorNode
@@ -63,23 +63,23 @@ class Sound {
 
     async stop() {
         return new Promise(async (resolve) => {
-			console.log("stop")
-			this.scriptProcessorNode.disconnect();
-			this.analyserNode = this.context.createAnalyser()
+            console.log("stop")
+            this.scriptProcessorNode.disconnect();
+            this.analyserNode = this.context.createAnalyser()
             const audioBuffer = this.context.createBuffer(this.data.length, this.length, this.sampleRate);
             for (const i of Array(this.data.length).keys()) {
-				let data = this.data[i]
-				data = await this.callapi(data)
-				audioBuffer.getChannelData(i).set(data)
-			}
-			this.audioBufferSourceNode = this.context.createBufferSource();
-			this.audioBufferSourceNode.loop = false
-			this.audioBufferSourceNode.loopStart = 0
-			this.audioBufferSourceNode.playbackRate.value = 1.0
+                let data = this.data[i]
+                data = await this.callapi(data)
+                audioBuffer.getChannelData(i).set(data)
+            }
+            this.audioBufferSourceNode = this.context.createBufferSource();
+            this.audioBufferSourceNode.loop = false
+            this.audioBufferSourceNode.loopStart = 0
+            this.audioBufferSourceNode.playbackRate.value = 1.0
             this.audioBufferSourceNode.buffer = audioBuffer
             this.audioBufferSourceNode.loopEnd = audioBuffer.duration
-			this.audioBufferSourceNode.connect(this.context.destination);
-			this.audioBufferSourceNode.connect(this.analyserNode)
+            this.audioBufferSourceNode.connect(this.context.destination);
+            this.audioBufferSourceNode.connect(this.analyserNode)
             this.audioBufferSourceNode.start(0);
             this.audioBufferSourceNode.onended = (e) => {
                 console.log("audio stopped.");
@@ -93,20 +93,24 @@ class Sound {
 
     analyser() {
         const id = setInterval(() => {
-			if (!this.analyserNode) {
-				this.graph.update([], [])
-				return 
-			}
+            if (!this.analyserNode) {
+                this.graph.update([], [])
+                return
+            }
             const frequencyData = new Uint8Array(this.analyserNode.frequencyBinCount);
             this.analyserNode.getByteFrequencyData(frequencyData);
             const timeDomainData = new Uint8Array(this.analyserNode.frequencyBinCount);
             this.analyserNode.getByteTimeDomainData(timeDomainData)
+            const array = new Float32Array(this.analyserNode.frequencyBinCount);
+            this.analyserNode.getFloatFrequencyData(array)
+            // console.log(array)
+
             this.graph.update(frequencyData, timeDomainData)
         }, 30);
     }
 
     onAudioProcess(e) {
-		console.log("onaudioprocess", this.sampleRate, this.duration, this.length)
+        console.log("onaudioprocess", this.sampleRate, this.duration, this.length)
         this.sampleRate = e.inputBuffer.sampleRate
         this.duration += e.inputBuffer.duration
         this.length += e.inputBuffer.length
@@ -170,6 +174,11 @@ class Graph {
 class Utils {
     zero(number, n = 0) {
         return (number + Array(n).fill("0").join("")).slice(-n);
+    }
+    sleep(msec) {
+        return new Promise((resolve) => {
+            setTimeout(() => { resolve() }, msec);
+        })
     }
 }
 
