@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"log"
 	"math"
+	"math/cmplx"
 	"net/http"
 
 	"github.com/TakenokoTech/go-voice/utils"
@@ -44,10 +45,8 @@ func SoundHandler(w http.ResponseWriter, r *http.Request) {
 		c128 := utils.Float64ToComplex128(f64)
 		// フーリエ
 		ff := fft.FFT(c128)
-		// アナライズ
-		// for index, frame := range ff {
-		// ff[index] = effect(index, frame)
-		// }
+		// エフェクト
+		ff = effect(ff)
 		// 逆フーリエ
 		iff := fft.IFFT(ff)
 		buffer = append(buffer, utils.Complex128ToFloat32(iff)...)
@@ -61,8 +60,13 @@ func SoundHandler(w http.ResponseWriter, r *http.Request) {
 		newIff := fft.FFT(c128)
 		if i == 1024*10 {
 			for index, _ := range f32 {
-				db := float64(10) * math.Log10(real(newIff[index])*real(newIff[index]))
-				log.Printf("[%4d]%f - %f", index, real(newIff[index]), db)
+				if index < 200 {
+					// db := float64(10) * math.Log10(real(newIff[index])*real(newIff[index]))
+					// log.Printf("[%4d]%f", index, f32)
+					r := math.Abs(real(newIff[index]))
+					log.Printf("[%4d]%f, %v", index, r, cmplx.Log10(newIff[index]))
+					// log.Printf("[%4d] %f, %f", index, newIff[index]/1024*2, 0 )
+				}
 			}
 		}
 	}
@@ -72,9 +76,30 @@ func SoundHandler(w http.ResponseWriter, r *http.Request) {
 	utils.ResponseSuccess(w, res)
 }
 
-func effect(f int, frame complex128) complex128 {
-	if f > 16 {
-		return complex128(0)
+func effect(music []complex128) []complex128 {
+	result := make([]complex128, len(music), len(music))
+	for index, frame := range music {
+		switch {
+		// ローパス
+		// case inversePhase(index) < 256:
+		// result[index] = complex128(0)
+		// case inversePhase(index) < 16:
+		// result[index] = complex128(0)
+		// case index > 511:
+		// result[index] = complex128(0)
+		// ハイパス
+		// case inversePhase(index) > 128:
+		// result[index] = frame * 0.75 // complex128(0)
+		default:
+			result[index] = frame * 2
+		}
 	}
-	return frame
+	return result
+}
+
+func inversePhase(index int) int {
+	if index < 512 {
+		return index + 1
+	}
+	return 1024 - index
 }

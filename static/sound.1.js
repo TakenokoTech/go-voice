@@ -16,7 +16,7 @@ class Sound {
         this.length = 0
         this.scriptProcessorNode = null
         this.audioBufferSourceNode = null
-        this.analyserNode = null
+        // this.analyserNode = null
     }
 
     didmount() {
@@ -94,23 +94,25 @@ class Sound {
     analyser() {
         const id = setInterval(() => {
             if (!this.analyserNode) {
-                this.graph.update([], [])
+                this.graph.update([], [], [], [])
                 return
             }
             const frequencyData = new Uint8Array(this.analyserNode.frequencyBinCount);
             this.analyserNode.getByteFrequencyData(frequencyData);
             const timeDomainData = new Uint8Array(this.analyserNode.frequencyBinCount);
             this.analyserNode.getByteTimeDomainData(timeDomainData)
-            const array = new Float32Array(this.analyserNode.frequencyBinCount);
-            this.analyserNode.getFloatFrequencyData(array)
-            // console.log(array)
 
-            this.graph.update(frequencyData, timeDomainData)
-        }, 30);
+            const frequencyFloatData = new Float32Array(this.analyserNode.frequencyBinCount);
+            this.analyserNode.getFloatFrequencyData(frequencyFloatData)
+            const timeDomainFloatData = new Float32Array(this.analyserNode.frequencyBinCount);
+            this.analyserNode.getFloatTimeDomainData(timeDomainFloatData)
+
+            this.graph.update(frequencyData, timeDomainData, frequencyFloatData, timeDomainFloatData)
+        }, 10);
     }
 
     onAudioProcess(e) {
-        console.log("onaudioprocess", this.sampleRate, this.duration, this.length)
+        // console.log("onaudioprocess", this.sampleRate, this.duration, this.length)
         this.sampleRate = e.inputBuffer.sampleRate
         this.duration += e.inputBuffer.duration
         this.length += e.inputBuffer.length
@@ -140,7 +142,7 @@ class Graph {
         this.canvasContext = this.canvas.getContext('2d');
     }
 
-    update(frequencyData, timeDomainData) {
+    update(frequencyData, timeDomainData, frequencyFloatData, timeDomainFloatData) {
         const context = this.canvasContext
         const width = this.canvas.width
         const height = this.canvas.height
@@ -152,6 +154,7 @@ class Graph {
         context.strokeStyle = 'rgba(128, 128, 128, 0.3)';
         context.stroke()
 
+        /*
         context.beginPath()
         for (var i = 0, len = frequencyData.length; i < len; i++) {
             var x = (i / len) * width
@@ -160,11 +163,36 @@ class Graph {
             if (i === 0) context.moveTo(x, y); else context.lineTo(x, y)
         }
         context.stroke()
+        */
+        /*
         context.beginPath()
         for (var i = 0, len = timeDomainData.length; i < len; i++) {
             var x = (i / len) * width
             var y = (1 - (timeDomainData[i] / 255)) * height
             context.strokeStyle = 'rgba(0, 0, 255, 0.5)';
+            if (i === 0) context.moveTo(x, y); else context.lineTo(x, y)
+        }
+        context.stroke()
+        */
+
+        context.font = "18px serif";
+        context.textBaseline = "middle"
+        context.fillText(" 1", 4, 18);
+        context.fillText(" 0", 4, height / 2);
+        context.fillText("-1", 4, height - 18);
+        context.beginPath()
+        for (var i = 0, len = frequencyFloatData.length; i < len; i++) {
+            var x = (i / len) * width
+            var y = (-frequencyFloatData[i] - 40) * height / 60
+            context.strokeStyle = 'rgba(255, 0, 0, 0.5)';
+            if (i === 0) context.moveTo(x, y); else context.lineTo(x, y)
+        }
+        context.stroke()
+        context.beginPath()
+        for (var i = 0, len = timeDomainFloatData.length; i < len; i++) {
+            var x = (i / len) * width
+            var y = (timeDomainFloatData[i] * height / 2) + (height / 2)
+            context.strokeStyle = 'rgba(0, 255, 0, 0.5)';
             if (i === 0) context.moveTo(x, y); else context.lineTo(x, y)
         }
         context.stroke()
