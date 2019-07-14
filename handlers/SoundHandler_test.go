@@ -46,13 +46,13 @@ func TestExampleSuccess(t *testing.T) {
 	}
 }
 
-func TestInversePhase(t *testing.T) {
-	a0 := inversePhase(0)
-	a511 := inversePhase(511)
-	a512 := inversePhase(512)
-	a1023 := inversePhase(1023)
-	assert.Equal(t, a0, 1)
-	assert.Equal(t, a511, 512)
-	assert.Equal(t, a512, 512)
-	assert.Equal(t, a1023, 1)
-}
+// func TestInversePhase(t *testing.T) {
+// 	a0 := inversePhase(0)
+// 	a511 := inversePhase(511)
+// 	a512 := inversePhase(512)
+// 	a1023 := inversePhase(1023)
+// 	assert.Equal(t, a0, 1)
+// 	assert.Equal(t, a511, 512)
+// 	assert.Equal(t, a512, 512)
+// 	assert.Equal(t, a1023, 1)
+// }

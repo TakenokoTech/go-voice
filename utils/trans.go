@@ -39,6 +39,15 @@ func Complex128ToFloat32(x []complex128) []float32 {
 	return f32
 }
 
+// Multiple :
+func Multiple(m float64, x []complex128) []complex128 {
+	c128 := make([]complex128, 0, len(x))
+	for index := range x {
+		c128 = append(c128, x[index]*complex(m, 0))
+	}
+	return c128
+}
+
 // Anlytics :
 func Anlytics(sound []complex128) {
 	maxReI, minReI := 0, 0
