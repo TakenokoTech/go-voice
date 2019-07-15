@@ -2,19 +2,24 @@ package handlers
 
 import (
 	"encoding/json"
+	"fmt"
 	"log"
 	"math"
 	"math/cmplx"
 	"net/http"
+	"time"
 
-	"github.com/TakenokoTech/go-voice/effect"
+	"github.com/TakenokoTech/go-voice/effects"
 	"github.com/TakenokoTech/go-voice/utils"
 	"github.com/mjibson/go-dsp/fft"
 )
 
 // Request :
 type Request struct {
-	Sound []float32 `json:"sound"`
+	Sound    []float32 `json:"sound"`
+	Lowpass  *int      `json:"lowpass"`
+	Highpass *int      `json:"highpass"`
+	Shift    *int      `json:"shift"`
 }
 
 // Responce :
@@ -41,23 +46,38 @@ func SoundHandler(w http.ResponseWriter, r *http.Request) {
 	if size < chunk {
 		chunk = size
 	}
+
+	start := time.Now()
 	for i := 0; i < size; i += chunk {
 		f32 := request.Sound[i : i+chunk]
 		f64 := utils.Float32To64(f32)
 		c128 := utils.Float64ToComplex128(f64)
+		ef := effects.NewEffect(c128, 44100, 1024)
+		//ef.Highpass(44100, 100, 1/math.Sqrt(2))
+		//ef.Lowpass(44100, 5512, 1/math.Sqrt(2))
 		// フーリエ
-		ff := fft.FFT(c128)
+		ef.FFT()
 		// エフェクト
-		ef := effect.NewEffect(ff)
 		ef.ChangeDb()
-		// ef.Highpass(44100, 100, 1/math.Sqrt(2))
-		// ef.Lowpass(44100, 100, 1/math.Sqrt(2))
+		if request.Lowpass != nil {
+			ef.LowpassDb(*request.Lowpass)
+		}
+		if request.Highpass != nil {
+			ef.HighpassDb(*request.Highpass)
+		}
+		if request.Shift != nil {
+			ef.Shiftpitch(*request.Shift)
+		}
 		bufferOut = append(bufferOut, utils.Complex128ToFloat32(ef.Result())...)
+		// ef.MaxDb()
 		ef.ChangeHz()
 		// 逆フーリエ
-		iff := fft.IFFT(ef.Result())
-		buffer = append(buffer, utils.Complex128ToFloat32(iff)...)
+		ef.IFFT()
+		iff := utils.Complex128ToFloat32(ef.Result())
+		buffer = append(buffer, iff...)
 	}
+	end := time.Now()
+	fmt.Printf("%f秒\n", (end.Sub(start)).Seconds())
 
 	// Response
 	res, err := json.Marshal(Responce{"ok", buffer, bufferOut})

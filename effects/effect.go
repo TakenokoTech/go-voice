@@ -1,22 +1,41 @@
-package effect
+package effects
 
 /**
  * http://vstcpp.wpblog.jp/?page_id=523
  */
 
 import (
+	"log"
 	"math"
 	"math/cmplx"
+
+	"github.com/mjibson/go-dsp/fft"
+)
+
+var (
+	d = math.Pow(2.0, 1.0/12.0)
 )
 
 // Effect :
 type Effect struct {
-	music []complex128
+	music      []complex128
+	sampleRate int
+	buffersize int
 }
 
 // NewEffect :
-func NewEffect(music []complex128) *Effect {
-	return &Effect{music}
+func NewEffect(music []complex128, sampleRate, buffersize int) *Effect {
+	return &Effect{music, sampleRate, buffersize}
+}
+
+// FFT : フーリエ変換
+func (ef *Effect) FFT() {
+	ef.music = fft.FFT(ef.music)
+}
+
+// IFFT : 逆フーリエ変換
+func (ef *Effect) IFFT() {
+	ef.music = fft.IFFT(ef.music)
 }
 
 // Lowpass :
@@ -75,21 +94,51 @@ func (ef *Effect) Result() []complex128 {
 		}
 	}
 	return ef.music
-	/*
-		result := make([]complex128, len(ef.music), len(ef.music))
-		for index, frame := range ef.music {
-			switch {
-			case index > 511:
-				result[index] = complex128(0)
-			default:
-				result[index] = frame
-			}
-		}
-		return ef.music
-		//*/
 }
 
-// ChangeDb :
+// HighpassDb :
+func (ef *Effect) HighpassDb(limit int) *Effect {
+	temp, c128 := make([]complex128, cap(ef.music)), make([]complex128, cap(ef.music))
+	copy(temp, ef.music)
+	copy(c128, ef.music)
+	for index := range ef.music {
+		switch {
+		case limit <= index && index < limit+128:
+			retio := float64(index-limit) / float64(128)
+			c128[index] = (c128[index-1]+c128[index]+c128[index+1])/3 - complex(100*retio, 0)
+		case limit+16 <= index:
+			c128[index] = c128[index-1]
+		}
+	}
+	ef.music = c128
+	return ef
+}
+
+// LowpassDb :
+func (ef *Effect) LowpassDb(limit int) *Effect {
+	c128 := ef.music
+	for index := range ef.music {
+		switch {
+		case index <= limit:
+			c128[index] = complex(-300, 0)
+		}
+	}
+	ef.music = c128
+	return ef
+}
+
+// Shiftpitch :
+func (ef *Effect) Shiftpitch(limit int) *Effect {
+	temp := make([]complex128, cap(ef.music))
+	copy(temp, ef.music)
+	for index := range ef.music {
+		target := int(float64(index)/math.Pow(d, float64(limit)))
+		ef.music[index] = temp[target]
+	}
+	return ef
+}
+
+// ChangeDb : DB値に変換
 func (ef *Effect) ChangeDb() *Effect {
 	c128 := make([]complex128, len(ef.music), len(ef.music))
 	for index := range ef.music {
@@ -99,13 +148,28 @@ func (ef *Effect) ChangeDb() *Effect {
 	return ef
 }
 
-// ChangeHz :
+// ChangeHz : Hz値に変換
 func (ef *Effect) ChangeHz() *Effect {
 	c128 := make([]complex128, len(ef.music), len(ef.music))
 	for index := range ef.music {
 		c128[index] = cmplx.Pow(10.0, (ef.music[index]+70)/20)
 	}
 	ef.music = c128
+	return ef
+}
+
+// MaxDb :
+func (ef *Effect) MaxDb() *Effect {
+	max := 0
+	for index := range ef.music {
+		if real(ef.music[max]) < real(ef.music[index]) {
+			max = index
+		}
+	}
+	if max > 1 {
+		log2 := math.Log2(440.0/float64(max*ef.sampleRate/ef.buffersize)+0.001)*12 + 60
+		log.Printf("max: %v, %v", max*ef.sampleRate/ef.buffersize, int(math.Mod(log2, 12)))
+	}
 	return ef
 }
 

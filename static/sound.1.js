@@ -28,10 +28,18 @@ class Sound {
 
     async callapi(sound = []) {
         try {
+            const high = +$("#highpass").val()
+            const low = +$("#lowpass").val()
+            const shift = +$("#shift").val()
             console.log(sound.length)
+            const body = {}
+            body["sound"] = sound
+            if (low > 1) body["lowpass"] = Math.pow(2, low)
+            if (high > 1) body["highpass"] = Math.pow(2, high)
+            if (shift > 0) body["shift"] = shift
             const res = await fetch("/link", {
                 method: 'POST',
-                body: JSON.stringify({ "sound": sound })
+                body: JSON.stringify(body)
             })
             const json = await res.json()
             this.graph.ff(json.ff)
@@ -58,6 +66,11 @@ class Sound {
             scriptProcessorNode.onaudioprocess = this.onAudioProcess
             scriptProcessorNode.connect(this.context.destination)
             resolve(this)
+
+            const id = setInterval(() => {
+                clearInterval(id);
+                stopRec()
+            }, 5000);
         })
     }
 
@@ -66,24 +79,28 @@ class Sound {
             console.log("stop")
             this.scriptProcessorNode.disconnect();
             this.analyserNode = this.context.createAnalyser()
+            // this.gainNode = this.context.createGain();
             const audioBuffer = this.context.createBuffer(this.data.length, this.length, this.sampleRate);
             for (const i of Array(this.data.length).keys()) {
                 let data = this.data[i]
                 data = await this.callapi(data)
                 audioBuffer.getChannelData(i).set(data)
             }
+            // this.gainNode.gain.value = 0.5;
             this.audioBufferSourceNode = this.context.createBufferSource();
             this.audioBufferSourceNode.loop = false
             this.audioBufferSourceNode.loopStart = 0
             this.audioBufferSourceNode.playbackRate.value = 1.0
             this.audioBufferSourceNode.buffer = audioBuffer
             this.audioBufferSourceNode.loopEnd = audioBuffer.duration
+            // this.audioBufferSourceNode.connect(this.gainNode);
             this.audioBufferSourceNode.connect(this.context.destination);
             this.audioBufferSourceNode.connect(this.analyserNode)
             this.audioBufferSourceNode.start(0);
             this.audioBufferSourceNode.onended = (e) => {
                 console.log("audio stopped.");
                 this.initialize()
+                startRec()
                 resolve(this)
             };
             console.log(audioBuffer);
@@ -107,7 +124,6 @@ class Sound {
             this.analyserNode.getFloatFrequencyData(frequencyFloatData)
             const timeDomainFloatData = new Float32Array(this.analyserNode.frequencyBinCount);
             this.analyserNode.getFloatTimeDomainData(timeDomainFloatData)
-            if (this.audioBufferSourceNode) console.log(this.context.destination)
             this.graph.update(frequencyData, timeDomainData, frequencyFloatData, timeDomainFloatData)
         }, 10);
     }
@@ -118,6 +134,9 @@ class Sound {
         this.duration += e.inputBuffer.duration
         this.length += e.inputBuffer.length
         this.data = !this.data ? new Array(e.inputBuffer.numberOfChannels).fill([]) : this.data
+        if (e.inputBuffer.getChannelData(0)[0] == 0 && e.inputBuffer.getChannelData(0)[1] == 0) {
+            return
+        }
         for (const i of Array(this.data.length).keys()) {
             Array.prototype.push.apply(this.data[i], e.inputBuffer.getChannelData(i))
         }
@@ -175,7 +194,28 @@ class Graph {
         context.moveTo(width / 8, 0)
         context.lineTo(width / 8, height)
         context.stroke()
-        context.fillText(Math.floor(44100 / 8), width / 8 - 18, height - 18);
+        context.fillText(Math.floor(44100 / 8), width / 8 - 14, height - 18);
+
+        context.beginPath()
+        context.moveTo(width / 16, 0)
+        context.lineTo(width / 16, height)
+        context.stroke()
+        context.fillText(Math.floor(44100 / 16), width / 16 - 14, height - 18);
+
+        const high = +$("#highpass").val()
+        context.strokeStyle = '#0079c266';
+        context.beginPath()
+        context.moveTo(Math.pow(2, high) * (width / 512), 0)
+        context.lineTo(Math.pow(2, high) * (width / 512), height)
+        context.stroke()
+
+        const low = +$("#lowpass").val()
+        context.strokeStyle = '#6cbb5a66';
+        context.beginPath()
+        context.moveTo(Math.pow(2, low) * (width / 512), 0)
+        context.lineTo(Math.pow(2, low) * (width / 512), height)
+        context.stroke()
+
 
         /*
         context.beginPath()
@@ -226,25 +266,13 @@ class Graph {
         if (this.soundFF) {
             const center = Math.floor(this.soundFF.length / 1024 / 2)
             context.beginPath()
-            for (var i = 0, len = 512; i < len; i++) {
+            for (var i = 0, len = 1024 / 2; i < len; i++) {
                 var x = (i / len) * width
                 // var y = (this.soundFF[center * 1024 + i] * height / 2) + (height / 2)
                 var y = (-this.soundFF[center * 1024 + i] - 30) * height / 120
                 context.strokeStyle = 'rgba(0, 0, 255, 0.5)';
                 if (i === 0) context.moveTo(x, y); else context.lineTo(x, y)
             }
-            const a100 = Math.floor(this.soundFF[center * 1024 + 10])
-            const a200 = Math.floor(this.soundFF[center * 1024 + 20])
-            const a300 = Math.floor(this.soundFF[center * 1024 + 30])
-            const a400 = Math.floor(this.soundFF[center * 1024 + 40])
-            const a500 = Math.floor(this.soundFF[center * 1024 + 50])
-            console.log(`${a100} ${a200} ${a300} ${a400} ${a500}`)
-            const b100 = Math.floor(frequencyFloatData[10])
-            const b200 = Math.floor(frequencyFloatData[20])
-            const b300 = Math.floor(frequencyFloatData[30])
-            const b400 = Math.floor(frequencyFloatData[40])
-            const b500 = Math.floor(frequencyFloatData[50])
-            console.log(`${b100} ${b200} ${b300} ${b400} ${b500}`)
             context.stroke()
         }
     }

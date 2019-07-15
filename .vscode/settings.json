@@ -5,7 +5,7 @@
   "go.gocodeAutoBuild": true,
   "go.testOnSave": true,
   "go.inferGopath": false,
-  "editor.formatOnSave": false,
+  "editor.formatOnSave": true,
   "editor.formatOnPaste": false,
   "go.formatTool": "goimports"
 }
