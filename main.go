@@ -1,6 +1,7 @@
 package main
 
 import (
+	"fmt"
 	"log"
 	"net/http"
 
@@ -10,6 +11,12 @@ import (
 func main() {
 	log.SetFlags(log.Lshortfile)
 	log.Printf("main")
+
+	defer func() {
+		if err := recover(); err != nil {
+			fmt.Println("recover:", err)
+		}
+	}()
 
 	http.Handle("/", http.FileServer(http.Dir("static")))
 	http.HandleFunc("/link", handlers.SoundHandler)
