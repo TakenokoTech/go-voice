@@ -15,6 +15,7 @@ require (
 	github.com/shurcooL/go v0.0.0-20190704215121-7189cc372560 // indirect
 	github.com/shurcooL/go-goon v0.0.0-20170922171312-37c2f522c041 // indirect
 	github.com/shurcooL/goexec v0.0.0-20181215213458-76a6b9a99126 // indirect
+	github.com/tensorflow/tensorflow v1.14.0
 	golang.org/x/net v0.0.0-20190628185345-da137c7871d7
 	golang.org/x/tools v0.0.0-20190703212419-2214986f1668 // indirect
 	gotest.tools v2.2.0+incompatible
