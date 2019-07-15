@@ -36,7 +36,7 @@ class Sound {
             body["sound"] = sound
             if (low > 1) body["lowpass"] = Math.pow(2, low)
             if (high > 1) body["highpass"] = Math.pow(2, high)
-            if (shift > 0) body["shift"] = shift
+            if (shift != 0) body["shift"] = shift
             const res = await fetch("/link", {
                 method: 'POST',
                 body: JSON.stringify(body)
@@ -168,6 +168,10 @@ class Graph {
         const context = this.canvasContext
         const width = this.canvas.width
         const height = this.canvas.height
+        this.div = 4
+        const samplerate = 44100 / this.div
+        frequencyFloatData = frequencyFloatData.slice(0, frequencyFloatData.length / this.div);
+        timeDomainFloatData = timeDomainFloatData.slice(0, timeDomainFloatData.length / this.div);
         context.clearRect(0, 0, width, height)
         context.font = "12px serif";
         context.textBaseline = "middle"
@@ -182,25 +186,25 @@ class Graph {
         context.moveTo(width / 2, 0)
         context.lineTo(width / 2, height)
         context.stroke()
-        context.fillText(44100 / 2, width / 2 - 18, height - 18);
+        context.fillText(Math.floor(samplerate / 4), width / 2 - 18, height - 18);
 
         context.beginPath()
         context.moveTo(width / 4, 0)
         context.lineTo(width / 4, height)
         context.stroke()
-        context.fillText(44100 / 4, width / 4 - 18, height - 18);
+        context.fillText(Math.floor(samplerate / 8), width / 4 - 18, height - 18);
 
         context.beginPath()
         context.moveTo(width / 8, 0)
         context.lineTo(width / 8, height)
         context.stroke()
-        context.fillText(Math.floor(44100 / 8), width / 8 - 14, height - 18);
+        context.fillText(Math.floor(samplerate / 16), width / 8 - 14, height - 18);
 
         context.beginPath()
         context.moveTo(width / 16, 0)
         context.lineTo(width / 16, height)
         context.stroke()
-        context.fillText(Math.floor(44100 / 16), width / 16 - 14, height - 18);
+        context.fillText(Math.floor(samplerate / 32), width / 16 - 14, height - 18);
 
         const high = +$("#highpass").val()
         context.strokeStyle = '#0079c266';
@@ -266,7 +270,7 @@ class Graph {
         if (this.soundFF) {
             const center = Math.floor(this.soundFF.length / 1024 / 2)
             context.beginPath()
-            for (var i = 0, len = 1024 / 2; i < len; i++) {
+            for (var i = 0, len = 512 / this.div; i < len; i++) {
                 var x = (i / len) * width
                 // var y = (this.soundFF[center * 1024 + i] * height / 2) + (height / 2)
                 var y = (-this.soundFF[center * 1024 + i] - 30) * height / 120

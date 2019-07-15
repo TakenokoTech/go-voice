@@ -98,32 +98,30 @@ func (ef *Effect) Result() []complex128 {
 
 // HighpassDb :
 func (ef *Effect) HighpassDb(limit int) *Effect {
-	temp, c128 := make([]complex128, cap(ef.music)), make([]complex128, cap(ef.music))
+	temp := make([]complex128, cap(ef.music))
 	copy(temp, ef.music)
-	copy(c128, ef.music)
 	for index := range ef.music {
 		switch {
 		case limit <= index && index < limit+128:
 			retio := float64(index-limit) / float64(128)
-			c128[index] = (c128[index-1]+c128[index]+c128[index+1])/3 - complex(100*retio, 0)
-		case limit+16 <= index:
-			c128[index] = c128[index-1]
+			ef.music[index] = (temp[index-1]+temp[index]+temp[index+1])/3 - complex(128*retio, 0)
+		case limit+128 <= index:
+			ef.music[index] = ef.music[index-1]
 		}
 	}
-	ef.music = c128
 	return ef
 }
 
 // LowpassDb :
 func (ef *Effect) LowpassDb(limit int) *Effect {
-	c128 := ef.music
+	temp := make([]complex128, cap(ef.music))
+	copy(temp, ef.music)
 	for index := range ef.music {
 		switch {
 		case index <= limit:
-			c128[index] = complex(-300, 0)
+			ef.music[index] = complex(-300, 0)
 		}
 	}
-	ef.music = c128
 	return ef
 }
 
@@ -132,8 +130,10 @@ func (ef *Effect) Shiftpitch(limit int) *Effect {
 	temp := make([]complex128, cap(ef.music))
 	copy(temp, ef.music)
 	for index := range ef.music {
-		target := int(float64(index)/math.Pow(d, float64(limit)))
-		ef.music[index] = temp[target]
+		target := int(float64(index) / math.Pow(d, float64(limit)))
+		if target < len(ef.music) {
+			ef.music[index] = temp[target]
+		}
 	}
 	return ef
 }
@@ -142,7 +142,8 @@ func (ef *Effect) Shiftpitch(limit int) *Effect {
 func (ef *Effect) ChangeDb() *Effect {
 	c128 := make([]complex128, len(ef.music), len(ef.music))
 	for index := range ef.music {
-		c128[index] = cmplx.Log10(ef.music[index])*20 - complex(70.0, 0)
+		c128[index] = cmplx.Log10(ef.music[index]) * 20
+		c128[index] = c128[index] - complex(70.0, 0)
 	}
 	ef.music = c128
 	return ef
@@ -152,10 +153,22 @@ func (ef *Effect) ChangeDb() *Effect {
 func (ef *Effect) ChangeHz() *Effect {
 	c128 := make([]complex128, len(ef.music), len(ef.music))
 	for index := range ef.music {
-		c128[index] = cmplx.Pow(10.0, (ef.music[index]+70)/20)
+		c128[index] = ef.music[index] + 70
+		c128[index] = cmplx.Pow(10.0, c128[index]/20)
 	}
 	ef.music = c128
 	return ef
+}
+
+// Cepstrum :
+func (ef *Effect) Cepstrum() []complex128 {
+	temp := make([]complex128, len(ef.music), len(ef.music))
+	copy(temp, ef.music)
+	for index := range temp {
+		temp[index] = temp[index] + 70
+	}
+	temp = fft.FFT(temp)
+	return temp
 }
 
 // MaxDb :

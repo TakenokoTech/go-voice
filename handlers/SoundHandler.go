@@ -24,9 +24,10 @@ type Request struct {
 
 // Responce :
 type Responce struct {
-	Status string    `json:"status"`
-	Result []float32 `json:"result"`
-	FF     []float32 `json:"ff"`
+	Status   string    `json:"status"`
+	Result   []float32 `json:"result"`
+	FF       []float32 `json:"ff"`
+	Cepstrum []float32 `json:"cepstrum"`
 }
 
 // SoundHandler :
@@ -42,7 +43,7 @@ func SoundHandler(w http.ResponseWriter, r *http.Request) {
 	// Convert
 	chunk := 1024
 	size := len(request.Sound)
-	buffer, bufferOut := make([]float32, 0, size), make([]float32, 0, size)
+	buffer, bufferOut, bufferCepstrum := make([]float32, 0, size), make([]float32, 0, size), make([]float32, 0, size)
 	if size < chunk {
 		chunk = size
 	}
@@ -59,16 +60,17 @@ func SoundHandler(w http.ResponseWriter, r *http.Request) {
 		ef.FFT()
 		// エフェクト
 		ef.ChangeDb()
+		if request.Shift != nil {
+			ef.Shiftpitch(*request.Shift)
+		}
 		if request.Lowpass != nil {
 			ef.LowpassDb(*request.Lowpass)
 		}
 		if request.Highpass != nil {
 			ef.HighpassDb(*request.Highpass)
 		}
-		if request.Shift != nil {
-			ef.Shiftpitch(*request.Shift)
-		}
 		bufferOut = append(bufferOut, utils.Complex128ToFloat32(ef.Result())...)
+		bufferCepstrum = append(bufferCepstrum, utils.Complex128ToFloat32(ef.Cepstrum())...)
 		// ef.MaxDb()
 		ef.ChangeHz()
 		// 逆フーリエ
@@ -80,7 +82,7 @@ func SoundHandler(w http.ResponseWriter, r *http.Request) {
 	fmt.Printf("%f秒\n", (end.Sub(start)).Seconds())
 
 	// Response
-	res, err := json.Marshal(Responce{"ok", buffer, bufferOut})
+	res, err := json.Marshal(Responce{"ok", buffer, bufferOut, bufferCepstrum})
 	if err != nil {
 		log.Printf("Response Error: %v", err)
 	}
