@@ -2,21 +2,21 @@ class Sound {
     constructor() {
         this.didmount = this.didmount.bind(this)
         this.initialize = this.initialize.bind(this)
-		this.callapi = this.callapi.bind(this)
+        this.callapi = this.callapi.bind(this)
         this.analyser = this.analyser.bind(this)
         this.onAudioProcess = this.onAudioProcess.bind(this)
+        this.graph = new Graph()
         this.initialize()
         this.didmount()
     }
 
     initialize() {
-        this.graph = new Graph()
         this.sampleRate = 0
         this.duration = 0
         this.length = 0
         this.scriptProcessorNode = null
         this.audioBufferSourceNode = null
-        this.e = null
+        // this.analyserNode = null
     }
 
     didmount() {
@@ -24,31 +24,38 @@ class Sound {
         this.debugText = document.getElementById("debugText")
         this.recTime = document.getElementById("recTime")
         this.analyser()
-	}
-	
-	async callapi(sound = []) {
-		try {
-			console.log(sound.length)
-			const res = await fetch("http://127.0.0.1:8080/link", {
-				method: 'POST',
-				body: JSON.stringify({"sound": sound})
-			})
-			const json = await res.json()
-			console.log(json)
-			return json.result
-		} catch(e) {
-			console.error(e)
-			return ""
-		}
-	}
+    }
+
+    async callapi(sound = []) {
+        try {
+            const high = +$("#highpass").val()
+            const low = +$("#lowpass").val()
+            const shift = +$("#shift").val()
+            console.log(sound.length)
+            const body = {}
+            body["sound"] = sound
+            if (low > 1) body["lowpass"] = Math.pow(2, low)
+            if (high > 1) body["highpass"] = Math.pow(2, high)
+            if (shift != 0) body["shift"] = shift
+            const res = await fetch("/link", {
+                method: 'POST',
+                body: JSON.stringify(body)
+            })
+            const json = await res.json()
+            this.graph.ff(json.ff)
+            return json.result
+        } catch (e) {
+            console.error(e)
+            return ""
+        }
+    }
 
     async start() {
-        this.data = null
-        this.context = new AudioContext()
-        this.scriptProcessorNode = this.context.createScriptProcessor(1024, 1, 1)
-        this.analyserNode = this.context.createAnalyser()
-
         return new Promise(async (resolve) => {
+            this.data = null
+            this.context = new AudioContext()
+            this.scriptProcessorNode = this.context.createScriptProcessor(1024, 1, 1)
+            this.analyserNode = this.context.createAnalyser()
             this.video.srcObject = await navigator.mediaDevices.getUserMedia({ video: false, audio: true })
             this.video.volume = 0
             const scriptProcessorNode = this.scriptProcessorNode
@@ -59,44 +66,41 @@ class Sound {
             scriptProcessorNode.onaudioprocess = this.onAudioProcess
             scriptProcessorNode.connect(this.context.destination)
             resolve(this)
+
+            // const id = setInterval(() => {
+            //     clearInterval(id);
+            //     stopRec()
+            // }, 5000);
         })
     }
 
     async stop() {
-        const df = this.sampleRate / this.analyserNode.fftSize
-        this.audioBufferSourceNode = this.context.createBufferSource();
-        this.audioBufferSourceNode.loop = false
-        this.audioBufferSourceNode.loopStart = 0
-        this.audioBufferSourceNode.playbackRate.value = 1.0
-
         return new Promise(async (resolve) => {
+            console.log("stop")
             this.scriptProcessorNode.disconnect();
+            this.analyserNode = this.context.createAnalyser()
+            // this.gainNode = this.context.createGain();
             const audioBuffer = this.context.createBuffer(this.data.length, this.length, this.sampleRate);
             for (const i of Array(this.data.length).keys()) {
-				// this.data[i] = utils.pitchShift(this.data[i])
-				let data = this.data[i]
-				data = await this.callapi(data)
-                // const chunk = 1024
-                // let buffer = []
-                // for (let i = 0, len = data.length; i < len; i += chunk) {
-                //     const startTime = performance.now();
-                //     const arr = data.slice(i, i + chunk)
-                //     const dft = utils.dft(arr)
-                //     const idft = utils.idft(dft.Re, dft.Im).Re
-                //     for (const n of idft) buffer.push(n)
-                //     const endTime = performance.now();
-                //     console.log(`${i} / ${len} dft: ${endTime - startTime}`);
-                // }
-				// audioBuffer.getChannelData(i).set(buffer)
-				audioBuffer.getChannelData(i).set(data)
+                let data = this.data[i]
+                data = await this.callapi(data)
+                audioBuffer.getChannelData(i).set(data)
             }
+            // this.gainNode.gain.value = 0.5;
+            this.audioBufferSourceNode = this.context.createBufferSource();
+            this.audioBufferSourceNode.loop = false
+            this.audioBufferSourceNode.loopStart = 0
+            this.audioBufferSourceNode.playbackRate.value = 1.0
             this.audioBufferSourceNode.buffer = audioBuffer
             this.audioBufferSourceNode.loopEnd = audioBuffer.duration
+            // this.audioBufferSourceNode.connect(this.gainNode);
             this.audioBufferSourceNode.connect(this.context.destination);
+            this.audioBufferSourceNode.connect(this.analyserNode)
             this.audioBufferSourceNode.start(0);
             this.audioBufferSourceNode.onended = (e) => {
                 console.log("audio stopped.");
                 this.initialize()
+                startRec()
                 resolve(this)
             };
             console.log(audioBuffer);
@@ -106,27 +110,37 @@ class Sound {
 
     analyser() {
         const id = setInterval(() => {
-            if (!this.e) return
+            if (!this.analyserNode) {
+                this.graph.update([], [], [], [])
+                return
+            }
+            this.analyserNode.minDecibels = -150
+            this.analyserNode.maxDecibels = -30
             const frequencyData = new Uint8Array(this.analyserNode.frequencyBinCount);
             this.analyserNode.getByteFrequencyData(frequencyData);
             const timeDomainData = new Uint8Array(this.analyserNode.frequencyBinCount);
             this.analyserNode.getByteTimeDomainData(timeDomainData)
-            this.graph.update(this.e.inputBuffer.getChannelData(0), frequencyData, timeDomainData)
-        }, 30);
+            const frequencyFloatData = new Float32Array(this.analyserNode.frequencyBinCount);
+            this.analyserNode.getFloatFrequencyData(frequencyFloatData)
+            const timeDomainFloatData = new Float32Array(this.analyserNode.frequencyBinCount);
+            this.analyserNode.getFloatTimeDomainData(timeDomainFloatData)
+            this.graph.update(frequencyData, timeDomainData, frequencyFloatData, timeDomainFloatData)
+        }, 10);
     }
 
     onAudioProcess(e) {
-		console.log("onaudioprocess", this.sampleRate, this.duration, this.length)
-        // debugText.innerHTML = "<div>" + e.inputBuffer.getChannelData(0).map(v => v * 10).join("</div><div>") + "</div>"
+        console.log("onaudioprocess", this.sampleRate, this.duration, this.length)
         this.sampleRate = e.inputBuffer.sampleRate
         this.duration += e.inputBuffer.duration
         this.length += e.inputBuffer.length
         this.data = !this.data ? new Array(e.inputBuffer.numberOfChannels).fill([]) : this.data
+        if (e.inputBuffer.getChannelData(0)[0] == 0 && e.inputBuffer.getChannelData(0)[1] == 0) {
+            return
+        }
         for (const i of Array(this.data.length).keys()) {
             Array.prototype.push.apply(this.data[i], e.inputBuffer.getChannelData(i))
         }
         recTime.innerHTML = this.duration.toFixed(2)
-        this.e = e
     }
 
     onPlaying(playtime = 0.0) {
@@ -146,28 +160,68 @@ class Graph {
         this.canvas.setAttribute("width", document.getElementById("leftBox").clientWidth);
         this.canvas.setAttribute("height", document.getElementById("leftBox").clientHeight);
         this.canvasContext = this.canvas.getContext('2d');
+        this.update = this.update.bind(this)
+        this.ff = this.ff.bind(this)
     }
 
-    update(data, frequencyData, timeDomainData) {
+    update(frequencyData, timeDomainData, frequencyFloatData, timeDomainFloatData) {
         const context = this.canvasContext
         const width = this.canvas.width
         const height = this.canvas.height
+        this.div = 4
+        const samplerate = 44100 / this.div
+        frequencyFloatData = frequencyFloatData.slice(0, frequencyFloatData.length / this.div);
+        timeDomainFloatData = timeDomainFloatData.slice(0, timeDomainFloatData.length / this.div);
         context.clearRect(0, 0, width, height)
+        context.font = "12px serif";
+        context.textBaseline = "middle"
 
+        context.strokeStyle = 'rgba(128, 128, 128, 0.3)';
         context.beginPath()
         context.moveTo(0, height / 2)
         context.lineTo(width, height / 2)
-        context.strokeStyle = 'rgba(128, 128, 128, 0.3)';
         context.stroke()
 
         context.beginPath()
-        for (var i = 0, len = data.length; i < len; i++) {
-            var x = (i / len) * width
-            var y = height * data[i] + (height / 2)
-            context.strokeStyle = 'rgba(255, 0, 0, 1)';
-            if (i === 0) context.moveTo(x, y); else context.lineTo(x, y)
-        }
+        context.moveTo(width / 2, 0)
+        context.lineTo(width / 2, height)
         context.stroke()
+        context.fillText(Math.floor(samplerate / 4), width / 2 - 18, height - 18);
+
+        context.beginPath()
+        context.moveTo(width / 4, 0)
+        context.lineTo(width / 4, height)
+        context.stroke()
+        context.fillText(Math.floor(samplerate / 8), width / 4 - 18, height - 18);
+
+        context.beginPath()
+        context.moveTo(width / 8, 0)
+        context.lineTo(width / 8, height)
+        context.stroke()
+        context.fillText(Math.floor(samplerate / 16), width / 8 - 14, height - 18);
+
+        context.beginPath()
+        context.moveTo(width / 16, 0)
+        context.lineTo(width / 16, height)
+        context.stroke()
+        context.fillText(Math.floor(samplerate / 32), width / 16 - 14, height - 18);
+
+        const high = +$("#highpass").val()
+        context.strokeStyle = '#0079c266';
+        context.beginPath()
+        context.moveTo(Math.pow(2, high) * (width / 512), 0)
+        context.lineTo(Math.pow(2, high) * (width / 512), height)
+        context.stroke()
+
+        const low = +$("#lowpass").val()
+        context.strokeStyle = '#6cbb5a66';
+        context.beginPath()
+        context.moveTo(Math.pow(2, low) * (width / 512), 0)
+        context.lineTo(Math.pow(2, low) * (width / 512), height)
+        context.stroke()
+
+
+        /*
         context.beginPath()
         for (var i = 0, len = frequencyData.length; i < len; i++) {
             var x = (i / len) * width
@@ -176,64 +230,60 @@ class Graph {
             if (i === 0) context.moveTo(x, y); else context.lineTo(x, y)
         }
         context.stroke()
+        */
+        /*
         context.beginPath()
         for (var i = 0, len = timeDomainData.length; i < len; i++) {
             var x = (i / len) * width
             var y = (1 - (timeDomainData[i] / 255)) * height
-            context.strokeStyle = 'rgba(0, 0, 255, 1)';
+            context.strokeStyle = 'rgba(0, 0, 255, 0.5)';
+            if (i === 0) context.moveTo(x, y); else context.lineTo(x, y)
+        }
+        context.stroke()
+        */
+
+        context.font = "16px serif";
+        context.fillText(" -30dB", width - 60, 18);
+        context.fillText(" -90dB", width - 60, height / 2);
+        context.fillText("-150dB", width - 60, height - 18);
+        context.beginPath()
+        for (var i = 0, len = frequencyFloatData.length; i < len; i++) {
+            var x = (i / len) * width
+            var y = (-frequencyFloatData[i] - 30) * height / 120
+            context.strokeStyle = 'rgba(255, 0, 0, 0.5)';
             if (i === 0) context.moveTo(x, y); else context.lineTo(x, y)
         }
         context.stroke()
 
-		/*
-        let dft = utils.dft(data)
+        context.fillText(" 1", 4, 18);
+        context.fillText(" 0", 4, height / 2);
+        context.fillText("-1", 4, height - 18);
         context.beginPath()
-        for (const x in dft.Re) {
-            var y = (1 - dft.Re[+x]) * height
-            context.strokeStyle = 'rgba(0, 255, 255, 0.5)';
-            if (x === 0) context.moveTo(x, y); else context.lineTo(x, y)
-        }
-        context.stroke()
-        context.beginPath()
-        for (const x in dft.Re) {
-            var y = (1 - dft.Im[+x]) * height
-            context.strokeStyle = 'rgba(255, 0, 255, 0.5)';
-            if (x === 0) context.moveTo(x, y); else context.lineTo(x, y)
-        }
-        context.stroke()
-        context.beginPath()
-        for (const x in dft.Re) {
-            const d = Math.sqrt(Math.pow(dft.Re[+x], 2) - Math.pow(dft.Im[+x], 2)) || 0
-            var y = (1 - d) * height
-            context.strokeStyle = 'rgba(255, 0, 0, 0.5)';
-            if (x === 0) context.moveTo(x, y); else context.lineTo(x, y)
+        for (var i = 0, len = timeDomainFloatData.length; i < len; i++) {
+            var x = (i / len) * width
+            var y = (timeDomainFloatData[i] * height / 2) + (height / 2)
+            context.strokeStyle = 'rgba(0, 255, 0, 0.5)';
+            if (i === 0) context.moveTo(x, y); else context.lineTo(x, y)
         }
         context.stroke()
 
-        dft = utils.idft(dft.Re, dft.Im)
-        context.beginPath()
-        for (const x in dft.Re) {
-            var y = height * dft.Re[+x] + (height / 2)
-            context.strokeStyle = 'rgba(0, 255, 255, 0.5)';
-            if (x === 0) context.moveTo(x, y); else context.lineTo(x, y)
+        if (this.soundFF) {
+            const center = Math.floor(this.soundFF.length / 1024 / 2)
+            context.beginPath()
+            for (var i = 0, len = 512 / this.div; i < len; i++) {
+                var x = (i / len) * width
+                // var y = (this.soundFF[center * 1024 + i] * height / 2) + (height / 2)
+                var y = (-this.soundFF[center * 1024 + i] - 30) * height / 120
+                context.strokeStyle = 'rgba(0, 0, 255, 0.5)';
+                if (i === 0) context.moveTo(x, y); else context.lineTo(x, y)
+            }
+            context.stroke()
         }
-        context.stroke()
-        context.beginPath()
-        for (const x in dft.Re) {
-            var y = height * dft.Im[+x] + (height / 2)
-            context.strokeStyle = 'rgba(255, 0, 255, 0.5)';
-            if (x === 0) context.moveTo(x, y); else context.lineTo(x, y)
-        }
-        context.stroke()
-        context.beginPath()
-        for (const x in dft.Re) {
-            const d = Math.sqrt(Math.pow(dft.Re[+x], 2) - Math.pow(dft.Im[+x], 2)) || 0
-            var y = d * height + (height / 2)
-            context.strokeStyle = 'rgba(255, 0, 0, 0.5)';
-            if (x === 0) context.moveTo(x, y); else context.lineTo(x, y)
-        }
-		context.stroke()
-		*/
+    }
+
+    ff(soundFF = null) {
+        console.log(soundFF)
+        if (soundFF) this.soundFF = soundFF
     }
 }
 
@@ -241,53 +291,10 @@ class Utils {
     zero(number, n = 0) {
         return (number + Array(n).fill("0").join("")).slice(-n);
     }
-
-    pitchShift(d, p = 5) {
-        const semitone = Math.pow(2, (1 / 12))
-        const pitch = Math.pow(semitone, p)
-        const newData = new Array(d.length).fill(0)
-        for (const i in d) {
-            const frame = parseInt(i / 1024)
-            const db = parseInt((i % 1024) / pitch)
-            if (db < 1023) newData[frame * 1024 + db] = d[i]
-        }
-        console.log(`${p}, pitch = ${pitch}`)
-        return newData
-    }
-
-    dft(data) {
-        // const startTime = performance.now();
-        const Re = new Float32Array(data.length)
-        const Im = new Float32Array(data.length)
-        for (let j = 0, N = data.length; j < N; ++j) {
-            for (let i = 0; i < N; ++i) {
-                const tht = 2.0 * Math.PI * i * j / N;
-                Re[j] += Math.cos(tht) * data[i]
-                Im[j] += Math.sin(tht) * data[i]
-            }
-        }
-        // const endTime = performance.now();
-        // console.log(`dft: ${endTime - startTime} ${data.length}`);
-        return { Re: Re, Im: Im };
-    }
-
-    idft(re, im) {
-        // const startTime = performance.now();
-        const Re = new Float32Array(re.length)
-        const Im = new Float32Array(re.length)
-        for (let j = 0, N = re.length; j < N; ++j) {
-            let Re_sum = 0.0, Im_sum = 0.0;
-            for (let i = 0; i < N; ++i) {
-                const tht = 2.0 * Math.PI * i * j / N
-                Re_sum += re[i] * Math.cos(tht) - im[i] * Math.sin(tht)
-                Im_sum += re[i] * Math.sin(tht) + im[i] * Math.cos(tht)
-            }
-            Re[j] = Re_sum / N;
-            Im[j] = Im_sum / N;
-        }
-        // const endTime = performance.now();
-        // console.log(`idft: ${endTime - startTime}`);
-        return { Re: Re, Im: Im };
+    sleep(msec) {
+        return new Promise((resolve) => {
+            setTimeout(() => { resolve() }, msec);
+        })
     }
 }
 
@@ -312,3 +319,5 @@ async function stopRec() {
     $("#recBtn").prop("disabled", false);
     console.info("stopRec")
 }
+
+$("#recBtn").prop("disabled", false);

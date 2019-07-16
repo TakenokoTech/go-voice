@@ -47,31 +47,22 @@ RUN apt-get update
 
 ### work dir ###
 WORKDIR $GOPATH/src/github.com/TakenokoTech/go-voice
-ADD  .  $GOPATH/src/github.com/TakenokoTech/go-voice
-RUN ls -la
-RUN pwd
+ADD ./go.mod $GOPATH/src/github.com/TakenokoTech/go-voice/go.mod
+ADD ./go.sum $GOPATH/src/github.com/TakenokoTech/go-voice/go.sum
+# ADD  .  $GOPATH/src/github.com/TakenokoTech/go-voice
 
 ### install essential ###
-RUN apt-get install -y \
-    build-essential \
-    wget
+RUN apt-get install -y build-essential wget
 
 ### install golang and tensorflow ###
-RUN cd $GOPATH && \
-    wget $GOLANG_PK_URL && \
-    tar -xvf $GOLANG_PK && \
-    mv go $TARGET_TF_DIR
-RUN cd $GOPATH && \
-    wget $TENSORFLOW_LIB_URL && \
-    tar -xvf $TENSORFLOW_C_LIB -C $TARGET_TF_DIR
+RUN cd $GOPATH && wget $GOLANG_PK_URL && tar -xvf $GOLANG_PK && mv go $TARGET_TF_DIR
+RUN cd $GOPATH && wget $TENSORFLOW_LIB_URL && tar -xvf $TENSORFLOW_C_LIB -C $TARGET_TF_DIR
 
 ### apt-get ###
-RUN apt-get install -y \
-    git
+RUN apt-get install -y git
 
 ### go run ###
-RUN go version
-RUN ls -la
-CMD go get && go run main.go
+RUN go get
+CMD go run main.go
 
 EXPOSE 8080

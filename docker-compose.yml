@@ -1,0 +1,12 @@
+version: "3"
+
+services:
+  main:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: go-voice
+    volumes:
+      - ./:/go/src/github.com/TakenokoTech/go-voice
+    ports:
+        - "8080:8080"
