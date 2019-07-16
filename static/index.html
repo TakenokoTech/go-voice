@@ -14,7 +14,7 @@
         <nav class="navbar navbar-dark bg-dark text-light">
             Sound Test
         </nav>
-        <div class="shadow" style="background-color: black">
+        <div class="shadow" style="background-color: black; display: none">
             <div class="container">
                 <video
                     id="myVideo"
@@ -62,6 +62,19 @@
                     <span>
                         <div class="input-group mt-3">
                             <div class="input-group-prepend">
+                                <span class="input-group-text">
+                                    &nbsp;Lowpass</span
+                                >
+                            </div>
+                            <input
+                                id="lowpass"
+                                type="number"
+                                class="form-control"
+                                value="0"
+                            />
+                        </div>
+                        <div class="input-group mt-1">
+                            <div class="input-group-prepend">
                                 <span class="input-group-text">Highpass</span>
                             </div>
                             <input
@@ -73,18 +86,9 @@
                         </div>
                         <div class="input-group mt-1">
                             <div class="input-group-prepend">
-                                <span class="input-group-text"> Lowpass</span>
-                            </div>
-                            <input
-                                id="lowpass"
-                                type="number"
-                                class="form-control"
-                                value="0"
-                            />
-                        </div>
-                        <div class="input-group mt-1">
-                            <div class="input-group-prepend">
-                                <span class="input-group-text"> Shift</span>
+                                <span class="input-group-text">
+                                    PitchShift</span
+                                >
                             </div>
                             <input
                                 id="shift"
@@ -95,6 +99,15 @@
                         </div>
                     </span>
                 </div>
+            </div>
+        </div>
+        <div class="container p-0">
+            <div
+                id="waveformBox"
+                class="col-sm-12 border"
+                style="background-color: white; padding: 0;"
+            >
+                <canvas id="waveform" width="400" height="400"></canvas>
             </div>
         </div>
         <script

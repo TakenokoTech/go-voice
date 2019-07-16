@@ -20,6 +20,7 @@ func main() {
 
 	http.Handle("/", http.FileServer(http.Dir("static")))
 	http.HandleFunc("/link", handlers.SoundHandler)
+	http.HandleFunc("/learn", handlers.LearnHandler)
 
 	http.ListenAndServe(":8080", nil)
 }

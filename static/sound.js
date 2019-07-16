@@ -5,7 +5,9 @@ class Sound {
         this.callapi = this.callapi.bind(this)
         this.analyser = this.analyser.bind(this)
         this.onAudioProcess = this.onAudioProcess.bind(this)
+        this.onAudioPlaying = this.onAudioPlaying.bind(this)
         this.graph = new Graph()
+        this.waveform = new Waveform()
         this.initialize()
         this.didmount()
     }
@@ -16,6 +18,7 @@ class Sound {
         this.length = 0
         this.scriptProcessorNode = null
         this.audioBufferSourceNode = null
+        this.timer = null
         // this.analyserNode = null
     }
 
@@ -54,57 +57,66 @@ class Sound {
         return new Promise(async (resolve) => {
             this.data = null
             this.context = new AudioContext()
-            this.scriptProcessorNode = this.context.createScriptProcessor(1024, 1, 1)
             this.analyserNode = this.context.createAnalyser()
             this.video.srcObject = await navigator.mediaDevices.getUserMedia({ video: false, audio: true })
             this.video.volume = 0
-            const scriptProcessorNode = this.scriptProcessorNode
             const analyserNode = this.analyserNode
             const mediaStreamAudioSourceNode = this.context.createMediaStreamSource(this.video.srcObject)
-            mediaStreamAudioSourceNode.connect(scriptProcessorNode)
             mediaStreamAudioSourceNode.connect(analyserNode)
+            //
+            this.scriptProcessorNode = this.context.createScriptProcessor(1024, 1, 1)
+            const scriptProcessorNode = this.scriptProcessorNode
+            mediaStreamAudioSourceNode.connect(scriptProcessorNode)
             scriptProcessorNode.onaudioprocess = this.onAudioProcess
             scriptProcessorNode.connect(this.context.destination)
             resolve(this)
 
-            // const id = setInterval(() => {
-            //     clearInterval(id);
-            //     stopRec()
-            // }, 5000);
+            this.timer = setInterval(() => {
+                stopRec()
+            }, 5000);
         })
     }
 
     async stop() {
         return new Promise(async (resolve) => {
             console.log("stop")
+            clearInterval(this.timer);
             this.scriptProcessorNode.disconnect();
-            this.analyserNode = this.context.createAnalyser()
-            // this.gainNode = this.context.createGain();
-            const audioBuffer = this.context.createBuffer(this.data.length, this.length, this.sampleRate);
             for (const i of Array(this.data.length).keys()) {
                 let data = this.data[i]
-                data = await this.callapi(data)
-                audioBuffer.getChannelData(i).set(data)
+                this.data[i] = await this.callapi(data)
             }
-            // this.gainNode.gain.value = 0.5;
+
+            const audioBuffer = this.context.createBuffer(this.data.length, this.length, this.sampleRate);
+            this.initialize()
+            this.analyserNode = this.context.createAnalyser()
+            for (const i of Array(this.data.length).keys()) {
+                audioBuffer.getChannelData(i).set(this.data[i])
+            }
             this.audioBufferSourceNode = this.context.createBufferSource();
             this.audioBufferSourceNode.loop = false
             this.audioBufferSourceNode.loopStart = 0
             this.audioBufferSourceNode.playbackRate.value = 1.0
             this.audioBufferSourceNode.buffer = audioBuffer
             this.audioBufferSourceNode.loopEnd = audioBuffer.duration
-            // this.audioBufferSourceNode.connect(this.gainNode);
             this.audioBufferSourceNode.connect(this.context.destination);
             this.audioBufferSourceNode.connect(this.analyserNode)
+            //
+            this.scriptProcessorNode = this.context.createScriptProcessor(1024, 1, 1)
+            const scriptProcessorNode = this.scriptProcessorNode
+            this.audioBufferSourceNode.connect(scriptProcessorNode)
+            scriptProcessorNode.onaudioprocess = this.onAudioPlaying
+            scriptProcessorNode.connect(this.context.destination)
+
             this.audioBufferSourceNode.start(0);
             this.audioBufferSourceNode.onended = (e) => {
                 console.log("audio stopped.");
+                scriptProcessorNode.onaudioprocess = null
                 this.initialize()
                 startRec()
                 resolve(this)
             };
             console.log(audioBuffer);
-            this.onPlaying()
         })
     }
 
@@ -112,6 +124,7 @@ class Sound {
         const id = setInterval(() => {
             if (!this.analyserNode) {
                 this.graph.update([], [], [], [])
+                this.waveform.update([])
                 return
             }
             this.analyserNode.minDecibels = -150
@@ -125,11 +138,12 @@ class Sound {
             const timeDomainFloatData = new Float32Array(this.analyserNode.frequencyBinCount);
             this.analyserNode.getFloatTimeDomainData(timeDomainFloatData)
             this.graph.update(frequencyData, timeDomainData, frequencyFloatData, timeDomainFloatData)
+            if (this.data) this.waveform.update(this.data[0])
         }, 10);
     }
 
     onAudioProcess(e) {
-        console.log("onaudioprocess", this.sampleRate, this.duration, this.length)
+        console.log("onAudioProcess", this.sampleRate, this.duration, this.length)
         this.sampleRate = e.inputBuffer.sampleRate
         this.duration += e.inputBuffer.duration
         this.length += e.inputBuffer.length
@@ -143,14 +157,13 @@ class Sound {
         recTime.innerHTML = this.duration.toFixed(2)
     }
 
-    onPlaying(playtime = 0.0) {
+    onAudioPlaying(e) {
+        console.log("onAudioPlaying", this.sampleRate, this.duration, this.length)
+        this.sampleRate = e.inputBuffer.sampleRate
+        this.duration += e.inputBuffer.duration
+        this.length += e.inputBuffer.length
         const maxtime = this.audioBufferSourceNode.buffer.duration
-        playTime.innerHTML = "Ready...";
-        const id = setInterval(() => {
-            if (!this.data) clearInterval(id);
-            playtime += 0.01;
-            playTime.innerHTML = Math.min(playtime, maxtime).toFixed(2) + " / " + maxtime.toFixed(2);
-        }, 9.9);
+        playTime.innerHTML = (this.duration).toFixed(2) + " / " + maxtime.toFixed(2);
     }
 }
 
@@ -220,28 +233,6 @@ class Graph {
         context.lineTo(Math.pow(2, low) * (width / 512), height)
         context.stroke()
 
-
-        /*
-        context.beginPath()
-        for (var i = 0, len = frequencyData.length; i < len; i++) {
-            var x = (i / len) * width
-            var y = (1 - (frequencyData[i] / 255)) * height
-            context.strokeStyle = 'rgba(0, 255, 0, 0.5)';
-            if (i === 0) context.moveTo(x, y); else context.lineTo(x, y)
-        }
-        context.stroke()
-        */
-        /*
-        context.beginPath()
-        for (var i = 0, len = timeDomainData.length; i < len; i++) {
-            var x = (i / len) * width
-            var y = (1 - (timeDomainData[i] / 255)) * height
-            context.strokeStyle = 'rgba(0, 0, 255, 0.5)';
-            if (i === 0) context.moveTo(x, y); else context.lineTo(x, y)
-        }
-        context.stroke()
-        */
-
         context.font = "16px serif";
         context.fillText(" -30dB", width - 60, 18);
         context.fillText(" -90dB", width - 60, height / 2);
@@ -284,6 +275,42 @@ class Graph {
     ff(soundFF = null) {
         console.log(soundFF)
         if (soundFF) this.soundFF = soundFF
+    }
+}
+
+class Waveform {
+    constructor() {
+        this.canvas = document.getElementById("waveform")
+        this.canvas.setAttribute("width", document.getElementById("waveformBox").clientWidth);
+        this.canvas.setAttribute("height", document.getElementById("waveformBox").clientHeight);
+        this.canvasContext = this.canvas.getContext('2d');
+        this.update = this.update.bind(this)
+    }
+
+    update(data) {
+        const context = this.canvasContext
+        const width = this.canvas.width
+        const height = this.canvas.height
+        context.clearRect(0, 0, width, height)
+        context.font = "12px serif";
+        context.textBaseline = "middle"
+
+        context.strokeStyle = 'rgba(128, 128, 128, 0.3)';
+        context.beginPath()
+        context.moveTo(0, height / 2)
+        context.lineTo(width, height / 2)
+        context.stroke()
+
+        const len = sound.length - (1024 * 4)
+        const max = 1024 * 32
+        context.beginPath()
+        for (let i = 0; i < max; i++) {
+            const x = (i / max) * width
+            const y = (data[len - i] * height / 2) + (height / 2)
+            context.strokeStyle = 'rgba(255, 0, 0, 0.25)';
+            if (i === 0) context.moveTo(x, y); else context.lineTo(x, y)
+        }
+        context.stroke()
     }
 }
 
